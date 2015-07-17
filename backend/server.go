@@ -201,6 +201,7 @@ func (s *Server) handleRoom(w http.ResponseWriter, r *http.Request) {
 	// Tag the agent. We use an authenticated but un-encrypted cookie.
 	agent, cookie, agentKey, err := getAgent(ctx, s, r)
 	if err != nil {
+		fmt.Printf("getAgent failed: %s\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
