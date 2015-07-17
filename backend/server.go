@@ -230,6 +230,8 @@ func (s *Server) handleRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	conn, err := upgrader.Upgrade(w, r, headers)
 	if err != nil {
+		fmt.Printf("upgrade error: %s\n", err.Error())
+		fmt.Printf("origin header was: %#v\n", headers["Origin"])
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
