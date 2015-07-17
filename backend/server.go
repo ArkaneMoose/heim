@@ -199,6 +199,7 @@ func (s *Server) handleRoom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Tag the agent. We use an authenticated but un-encrypted cookie.
+	fmt.Printf("calling getAgent\n")
 	agent, cookie, agentKey, err := getAgent(ctx, s, r)
 	if err != nil {
 		fmt.Printf("getAgent failed: %s\n", err)
@@ -206,10 +207,12 @@ func (s *Server) handleRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	fmt.Printf("got agent\n")
 	client := &proto.Client{Agent: agent}
 	client.FromRequest(ctx, r)
 
 	// Look up account associated with agent.
+	fmt.Printf("looking up account\n")
 	var accountID snowflake.Snowflake
 	if err := accountID.FromString(agent.AccountID); agent.AccountID != "" && err == nil {
 		if err := client.AuthenticateWithAgent(ctx, s.b, room, agent, agentKey); err != nil {
@@ -225,6 +228,7 @@ func (s *Server) handleRoom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Upgrade to a websocket and set cookie.
+	fmt.Printf("upgrading to websocket\n")
 	headers := http.Header{}
 	if cookie != nil {
 		headers.Add("Set-Cookie", cookie.String())
@@ -239,8 +243,10 @@ func (s *Server) handleRoom(w http.ResponseWriter, r *http.Request) {
 	defer conn.Close()
 
 	// Serve the session.
+	fmt.Printf("serving session\n")
 	session := newSession(ctx, s, conn, roomName, room, client, agentKey)
 	if err = session.serve(); err != nil {
+		fmt.Printf("session serve error: %s\n", err)
 		// TODO: error handling
 		return
 	}
