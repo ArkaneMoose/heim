@@ -184,6 +184,7 @@ func (s *Server) serveGzippedFile(w http.ResponseWriter, r *http.Request, filena
 
 func (s *Server) handleRoom(w http.ResponseWriter, r *http.Request) {
 	ctx := s.rootCtx.Fork()
+	logger := Logger(ctx)
 
 	// Resolve the room.
 	// TODO: support room creation?
@@ -199,24 +200,24 @@ func (s *Server) handleRoom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Tag the agent. We use an authenticated but un-encrypted cookie.
-	fmt.Printf("calling getAgent\n")
+	logger.Printf("calling getAgent\n")
 	agent, cookie, agentKey, err := getAgent(ctx, s, r)
 	if err != nil {
-		fmt.Printf("getAgent failed: %s\n", err)
+		logger.Printf("getAgent failed: %s\n", err)
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 
-	fmt.Printf("got agent\n")
+	logger.Printf("got agent\n")
 	client := &proto.Client{Agent: agent}
 	client.FromRequest(ctx, r)
 
 	// Look up account associated with agent.
-	fmt.Printf("looking up account\n")
+	logger.Printf("looking up account\n")
 	var accountID snowflake.Snowflake
 	if err := accountID.FromString(agent.AccountID); agent.AccountID != "" && err == nil {
 		if err := client.AuthenticateWithAgent(ctx, s.b, room, agent, agentKey); err != nil {
-			fmt.Printf("agent auth failed: %s\n", err)
+			logger.Printf("agent auth failed: %s\n", err)
 			switch err {
 			case proto.ErrAccessDenied:
 				http.Error(w, err.Error(), http.StatusForbidden)
@@ -228,22 +229,22 @@ func (s *Server) handleRoom(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Upgrade to a websocket and set cookie.
-	fmt.Printf("upgrading to websocket\n")
+	logger.Printf("upgrading to websocket\n")
 	headers := http.Header{}
 	if cookie != nil {
 		headers.Add("Set-Cookie", cookie.String())
 	}
 	conn, err := upgrader.Upgrade(w, r, headers)
 	if err != nil {
-		fmt.Printf("upgrade error: %s\n", err.Error())
-		fmt.Printf("origin header was: %#v\n", headers["Origin"])
+		logger.Printf("upgrade error: %s\n", err.Error())
+		logger.Printf("origin header was: %#v\n", r.Header["Origin"])
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
 	defer conn.Close()
 
 	// Serve the session.
-	fmt.Printf("serving session\n")
+	logger.Printf("serving session\n")
 	session := newSession(ctx, s, conn, roomName, room, client, agentKey)
 	if err = session.serve(); err != nil {
 		fmt.Printf("session serve error: %s\n", err)
